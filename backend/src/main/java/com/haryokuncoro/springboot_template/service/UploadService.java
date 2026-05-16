@@ -76,6 +76,7 @@ public class UploadService {
     ) {
 
         Media media = Media.builder()
+                .id(UUID.randomUUID())
                 .userId(userId)
                 .fileKey(request.getFileKey())
                 .mediaType(request.getMediaType())
