@@ -1,9 +1,9 @@
 package com.haryokuncoro.springboot_template.controller;
 
 import com.haryokuncoro.springboot_template.dto.CompleteUploadRequest;
+import com.haryokuncoro.springboot_template.dto.MediaResponse;
 import com.haryokuncoro.springboot_template.dto.PresignRequest;
 import com.haryokuncoro.springboot_template.dto.PresignResponse;
-import com.haryokuncoro.springboot_template.entity.Media;
 import com.haryokuncoro.springboot_template.entity.User;
 import com.haryokuncoro.springboot_template.service.UploadService;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +48,7 @@ public class UploadController {
     }
 
     @GetMapping("/me")
-    public List<Media> getMyMedia(Authentication authentication) {
+    public List<MediaResponse> getMyMedia(Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         return uploadService.getUserMedia(user.getId());
     }
