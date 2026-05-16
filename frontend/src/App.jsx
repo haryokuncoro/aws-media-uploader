@@ -1,65 +1,97 @@
-import axios from "axios";
-import { useEffect, useState, useCallback } from "react";
+import {
+  useEffect,
+  useState
+} from "react";
+
+import {
+  login
+} from "./services/authService";
+
+import {
+  getMyMedia,
+  getPresignedUrl,
+  completeUpload,
+  uploadToS3
+} from "./services/mediaService";
 
 function App() {
 
-  const [file, setFile] = useState(null);
-  const [mediaList, setMediaList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [file, setFile] =
+    useState(null);
 
-  const fetchMedia = useCallback(async () => {
+  const [mediaList, setMediaList] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [initialized, setInitialized] =
+    useState(false);
+
+  /*
+    Fetch media
+  */
+  const fetchMedia = async () => {
 
     try {
 
-      const response = await axios.get(
-        "http://localhost:8080/api/media/me"
-      );
+      const data =
+        await getMyMedia();
 
-      setMediaList(response.data);
+      setMediaList(data);
 
     } catch (error) {
 
-      console.error("Failed to fetch media", error);
-
+      console.error(
+        "Failed to fetch media",
+        error
+      );
     }
+  };
 
-  }, []);
-
+  /*
+    Auto login on startup
+  */
   useEffect(() => {
 
-    let mounted = true;
-
-    const loadMedia = async () => {
+    const initialize = async () => {
 
       try {
 
-        const response = await axios.get(
-          "http://localhost:8080/api/media/me"
-        );
+        /*
+          Login first
+        */
+        await login();
 
-        if (mounted) {
-          setMediaList(response.data);
-        }
+        /*
+          Then fetch media
+        */
+        await fetchMedia();
+
+        setInitialized(true);
 
       } catch (error) {
 
-        console.error("Failed to fetch media", error);
-
+        console.error(
+          "Initialization failed",
+          error
+        );
       }
     };
 
-    loadMedia();
-
-    return () => {
-      mounted = false;
-    };
+    initialize();
 
   }, []);
 
+  /*
+    Upload flow
+  */
   const uploadFile = async () => {
 
     if (!file) {
-      alert("Please select file");
+
+      alert("Select file");
+
       return;
     }
 
@@ -69,53 +101,35 @@ function App() {
 
       /*
         Step 1:
-        request presigned URL
+        get presigned URL
       */
-
-      const presignResponse = await axios.post(
-        "http://localhost:8080/api/media/presign",
-        {
-          fileName: file.name,
-          contentType: file.type
-        }
-      );
-
-      const { uploadUrl, fileKey } =
-        presignResponse.data;
+      const {
+        uploadUrl,
+        fileKey
+      } = await getPresignedUrl(file);
 
       /*
         Step 2:
         upload directly to S3
       */
-
-      await axios.put(
+      await uploadToS3(
         uploadUrl,
-        file,
-        {
-          headers: {
-            "Content-Type": file.type
-          }
-        }
+        file
       );
 
       /*
         Step 3:
         notify backend
       */
-
-      await axios.post(
-        "http://localhost:8080/api/media/complete",
-        {
-          fileKey,
-          mediaType: file.type
-        }
+      await completeUpload(
+        fileKey,
+        file.type
       );
 
       /*
         Step 4:
-        refresh media list
+        refresh media
       */
-
       await fetchMedia();
 
       alert("Upload success");
@@ -124,16 +138,23 @@ function App() {
 
     } catch (error) {
 
-      console.error("Upload failed", error);
+      console.error(
+        "Upload failed",
+        error
+      );
 
       alert("Upload failed");
 
     } finally {
 
       setLoading(false);
-
     }
   };
+
+  if (!initialized) {
+
+    return <h1>Initializing...</h1>;
+  }
 
   return (
     <div style={{ padding: 40 }}>
